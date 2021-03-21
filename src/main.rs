@@ -1,4 +1,9 @@
-use std::{error::Error, fs::File, io, path::Path};
+use std::{
+    error::Error,
+    fs::File,
+    io::{self, Read, Write},
+    path::Path,
+};
 
 use walkdir::{DirEntry, WalkDir};
 use zip::write::FileOptions;
@@ -20,14 +25,25 @@ fn zip_dir(
 ) -> Result<(), Box<dyn Error>> {
     let mut zip = zip::ZipWriter::new(file);
     let options = FileOptions::default().compression_method(zip::CompressionMethod::Deflated);
+    let mut buffer = Vec::new();
+    zip.start_file(
+        "mimetype",
+        FileOptions::default().compression_method(zip::CompressionMethod::Stored),
+    )?;
+    zip.write_all(b"application/epub+zip")?;
+
     for entry in it {
         let path = entry.path();
         let entry_name = path
             .strip_prefix(Path::new(prefix))?
             .to_string_lossy()
             .into_owned();
-        if path.is_file() {
+        if entry_name != "mimetype" && path.is_file() {
             zip.start_file(entry_name, options)?;
+            let mut f = File::open(path)?;
+            f.read_to_end(&mut buffer)?;
+            zip.write_all(&buffer)?;
+            buffer.clear();
         }
     }
     zip.finish()?;
