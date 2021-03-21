@@ -42,8 +42,19 @@ fn dozip(src_dir: &str) -> Result<(), Box<dyn Error>> {
             "no directory",
         )));
     }
-    let dest_path = src_path.with_extension("epub");
-    let dest_file = File::create(&dest_path)?;
+
+    let dest_basename = src_path
+        .file_name()
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "invalid directory name"))?;
+    let dest_file_path = Path::new(".").join(dest_basename).with_extension("epub");
+    let dest_file = File::create(&dest_file_path)?;
+
+    println!(
+        "creating {} from {}",
+        &dest_file_path.to_string_lossy().to_string(),
+        &src_dir
+    );
+
     let walkdir = WalkDir::new(src_dir.to_string());
     let mut iter = walkdir.into_iter().filter_map(|e| e.ok());
     zip_dir(&mut iter, src_dir, dest_file)?;
